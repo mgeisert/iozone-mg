@@ -18,15 +18,33 @@
 * /etc/services should contain "PIT" with a specified port value.
 *
 ******************************************************************************/
+#if defined(linux) || defined(__CYGWIN__)
+  #define _GNU_SOURCE
+#endif
+/* Include for Cygnus development environment for Windows */
+#if defined(__CYGWIN__)
+#define WIN32_LEAN_AND_MEAN
+#include <w32api/windows.h>
+#endif
+#if defined (Windows)
+#define WINHELPER_FUNCS
+#include "winhelper.h"
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <errno.h>
+#endif
 /*
 ** System header files.
 */
+#ifndef Windows
 #include <errno.h>        /* errno declaration & error codes.            */
 #include <netdb.h>        /* getaddrinfo(3) et al.                       */
 #include <netinet/in.h>   /* sockaddr_in & sockaddr_in6 definition.      */
+#endif
 #include <stdio.h>        /* printf(3) et al.                            */
 #include <stdlib.h>       /* exit(2).                                    */
 #include <string.h>       /* String manipulation & memory functions.     */
+#ifndef Windows
 #if defined(_SUA_)
 #include <poll.h>         /* poll(2) and related definitions.            */
 #else
@@ -36,10 +54,6 @@
 #include <time.h>         /* time(2) & ctime(3).                         */
 #include <sys/time.h>     /* gettimeofday 				 */
 #include <unistd.h>       /* getopt(3), read(2), etc.                    */
-/* Include for Cygnus development environment for Windows */
-#if defined (Windows)
-#include <Windows.h>
-int errno;
 #endif
 
 #if defined(_SUA_)
@@ -405,7 +419,7 @@ static int openSckt( const char *service,
          CHK( setsockopt( desc[ *descSize ],
                           IPPROTO_IPV6,
                           IPV6_V6ONLY,
-                          &v6Only,
+                          (char *) &v6Only,
                           sizeof( v6Only ) ) );
 #else
          /*
@@ -551,7 +565,7 @@ static void pit( int    tSckt[ ],
       /*
       ** Get the current time.
       */
-#if defined(Windows)
+#if defined(Windows) || defined(__CYGWIN__)
    LARGE_INTEGER freq,counter;
    double wintime,bigcounter;
    /* For Windows the time_of_day() is useless. It increments in 55 milli 

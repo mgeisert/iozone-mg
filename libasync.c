@@ -93,7 +93,6 @@
  */
 
 #include <sys/types.h>
-#include <aio.h>
 
 #if defined(_LARGEFILE64_SOURCE) && !defined(__LP64__)
 #	define aio_error	aio_error64
@@ -103,7 +102,7 @@
 #	define aio_write	aio_write64
 #endif
 
-#if defined(solaris) || defined(linux) || defined(SCO_Unixware_gcc) || defined(__NetBSD__)
+#if defined(solaris) || defined(linux) || defined(SCO_Unixware_gcc) || defined(__NetBSD__) || defined(__CYGWIN__)
 #else
 #include <sys/timers.h>
 #endif
@@ -116,11 +115,13 @@
 #include <sys/fs/vx_ioctl.h>
 #endif
 
-#if defined(OSFV5) || defined(linux)
+#if defined(OSFV5) || defined(linux) || defined(__CYGWIN__)
 #include <string.h>
 #endif
 
-#if defined(linux)
+#if defined(linux) || defined(__CYGWIN__)
+#include <aio.h>
+#include <signal.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -161,7 +162,7 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-static const char version[] = "Libasync Version $Revision: 3.32 $";
+static const char version[] = "Libasync Version $Revision: 3.33 $";
 struct cache_ent {
 #if defined(_LARGEFILE64_SOURCE) && defined(__CrayX1__)
 	aiocb64_t myaiocb;		/* For use in large file mode */
@@ -212,7 +213,7 @@ void takeoff_cache(struct cache *, struct cache_ent *);
 void del_cache(struct cache *);
 void putoninuse(struct cache *,struct cache_ent *);
 void takeoffinuse(struct cache *);
-struct cache_ent * allocate_write_buffer( struct cache *, long long , long long ,long long, off64_t, long long, long long, char *, char *);
+struct cache_ent * allocate_write_buffer( struct cache *, long long, off64_t,long long, long long, long long, long long, char *, char *);
 void async_put_on_write_queue(struct cache *, struct cache_ent *);
 void async_write_finish(struct cache *);
 void async_wait_for_write(struct cache *);
@@ -431,7 +432,7 @@ long long depth;
 		first_ce=alloc_cache(gc,fd,offset,size,(long long)LIO_READ);
 again:
 		ret=aio_read(&first_ce->myaiocb);
-		if(ret!=0)
+		if(ret != 0)
 		{
 			if(errno==EAGAIN)
 				goto again;
@@ -728,7 +729,7 @@ long long depth;
 		}
 		if(ret)
 			printf("aio_error 3: ret %zd %d\n",ret,errno);
-			printf("It changed in flight\n");
+//MAG			printf("It changed in flight\n");
 			
 		retval=aio_return(&ce->myaiocb);
 		if(retval > 0)
@@ -764,7 +765,7 @@ again:
 		first_ce->oldfd=first_ce->myaiocb.aio_fildes;
 		first_ce->oldsize=first_ce->myaiocb.aio_nbytes;
 		ret=aio_read(&first_ce->myaiocb);
-		if(ret!=0)
+		if(ret != 0)
 		{
 			if(errno==EAGAIN)
 				goto again;
@@ -978,8 +979,8 @@ again:
 
 #ifdef HAVE_ANSIC_C
 struct cache_ent *
-allocate_write_buffer( struct cache *gc, long long fd, long long size,long long op, 
-	off64_t offset, long long w_depth, long long direct, char *buffer, char *free_addr)
+allocate_write_buffer( struct cache *gc, long long fd, off64_t offset, long long size, 
+	long long op, long long w_depth, long long direct, char *buffer, char *free_addr)
 #else
 struct cache_ent *
 allocate_write_buffer(gc,fd,offset,size,op,w_depth,direct,buffer,free_addr)

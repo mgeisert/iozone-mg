@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.148 $
+# Version $Revision: 1.150 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -14,7 +14,7 @@ C89	= c89
 GCC	= gcc
 CCS	= /usr/ccs/bin/cc
 NACC	= /opt/ansic/bin/cc
-CFLAGS	=
+CFLAGS	= -g
 S10GCCFLAGS    = -m64
 S10CCFLAGS     = -m64
 FLAG64BIT      = -m64
@@ -33,6 +33,8 @@ all:
 	@echo "        ->   bsdi                 (32bit)   <-" 
 	@echo "        ->   convex               (32bit)   <-" 
 	@echo "        ->   CrayX1               (32bit)   <-"
+	@echo "        ->   Cygwin32             (32bit)   <-"
+	@echo "        ->   Cygwin64             (64bit)   <-"
 	@echo "        ->   dragonfly            (32bit)   <-"
 	@echo "        ->   freebsd              (32bit)   <-"
 	@echo "        ->   freebsd64            (64bit)   <-"
@@ -83,7 +85,8 @@ all:
 	@echo "        ->   SUA                  (32bit)   <-"
 	@echo "        ->   TRU64                (64bit)   <-"
 	@echo "        ->   UWIN                 (32bit)   <-"
-	@echo "        ->   Windows (95/98/NT)   (32bit)   <-"
+	@echo "        ->   Windows32: 95|98|NT  (32bit)   <-"
+	@echo "        ->   Windows64: NT|2K+|7+ (64bit)   <-"
 	@echo ""
 
 clean:
@@ -451,17 +454,74 @@ Solaris8-64-VXFS: iozone_solaris8-64-VXFS.o libasync.o libbif.o
 		-lsocket -o iozone
 
 #
-# Windows build requires Cygwin development environment. You
-# can get this from www.cygwin.com
-# No largefiles, No async I/O
+# Cygwin 32-bit build with threads, largefiles, async I/O...
+# Cygwin32 build (on Windows64) requires Cygwin i686 development environment.
+# From https://cygwin.com, download setup-x86.exe and run it accepting all
+# defaults (unless you *need* to adjust something) for a base install. Then
+# run it again and choose these additional packages for download+install:
+#     gcc-g++, make
 #
-Windows:	iozone_windows.o libbif.o fileop_windows.o pit_server_win.o
-	$(GCC) -O $(LDFLAGS) iozone_windows.o libbif.o -o iozone
-	$(GCC) -O $(LDFLAGS) fileop_windows.o -o fileop
-	$(GCC) -O $(LDFLAGS) pit_server_win.o -o pit_server
+Cygwin32:	iozone_Cygwin.o libbif.o fileop_Cygwin.o \
+		  pit_server_Cygwin.o
+	i686-pc-cygwin-gcc -O $(LDFLAGS) iozone_Cygwin.o libasync.o libbif.o -o iozone
+	i686-pc-cygwin-gcc -O $(LDFLAGS) fileop_Cygwin.o -o fileop
+	i686-pc-cygwin-gcc -O $(LDFLAGS) pit_server_Cygwin.o -o pit_server
 
 #
-# Windows build requires SUA development environment. You
+# Cygwin 64-bit build with threads, largefiles, async I/O...
+# Cygwin64 build (on Windows64) requires Cygwin x86_64 development environment.
+# From https://cygwin.com, download setup-x86_64.exe and run it accepting all
+# defaults (unless you *need* to adjust something) for a base install. Then
+# run it again and choose these additional packages for download+install:
+#     gcc-g++, make
+#
+Cygwin64:	iozone_Cygwin64.o libasync.o libbif.o fileop_Cygwin64.o \
+		  pit_server_Cygwin64.o
+	x86_64-pc-cygwin-gcc -O $(LDFLAGS) iozone_Cygwin64.o libasync.o libbif.o -o iozone
+	x86_64-pc-cygwin-gcc -O $(LDFLAGS) fileop_Cygwin64.o -o fileop
+	x86_64-pc-cygwin-gcc -O $(LDFLAGS) pit_server_Cygwin64.o -o pit_server
+
+#
+# Windows 32-bit native build with threads, no largefiles, no async I/O...
+# Windows32 native build requires Cygwin x86_64 development environment.
+# Cygwin is used to build a native Windows iozone that doesn't need Cygwin.
+# (You could also use MinGW or Microsoft Visual Studio but at present those
+# choices aren't supported by this makefile.)  You must be on 64-bit Windows.
+# From https://cygwin.com, download setup-x86_64.exe and run it accepting all
+# defaults (unless you *need* to adjust something) for a base install. Then
+# run it again and choose these additional packages for download+install:
+#     make, mingw64-i686-gcc-g++, mingw64-i686-winpthreads
+#
+Windows32:	iozone_windows.o libbif.o fileop_windows.o pit_server_win.o
+	i686-w64-mingw32-gcc -O -m32 $(LDFLAGS) iozone_windows.o libbif.o \
+	  -o iozone -lwsock32 -lws2_32 \
+	  /usr/i686-w64-mingw32/sys-root/mingw/lib/libwinpthread.a
+	i686-w64-mingw32-gcc -O -m32 $(LDFLAGS) fileop_windows.o -o fileop
+	i686-w64-mingw32-gcc -O -m32 $(LDFLAGS) pit_server_win.o \
+	  -o pit_server -lwsock32 -lws2_32
+
+#
+# Windows 64-bit native build with threads, no largefiles, no async I/O...
+# Windows64 native build requires Cygwin x86_64 development environment.
+# Cygwin is used to build a native Windows64 iozone that doesn't need Cygwin.
+# (You could also use MinGW-64 or Microsoft Visual Studio but at present those
+# choices aren't supported by this makefile.)  You must be on 64-bit Windows.
+# From https://cygwin.com, download setup-x86_64.exe and run it accepting all
+# defaults (unless you *need* to adjust something) for a base install. Then
+# run it again and choose these additional packages for download+install:
+#     make, mingw64-x86_64-gcc-g++, mingw64-x86_64-winpthreads
+#
+Windows64:	iozone_windows64.o libbif.o fileop_windows64.o \
+		  pit_server_win64.o
+	x86_64-w64-mingw32-gcc -O -m64 $(LDFLAGS) iozone_windows64.o libbif.o \
+	  -o iozone -lwsock32 -lws2_32 \
+	  /usr/x86_64-w64-mingw32/sys-root/mingw/lib/libwinpthread.a
+	x86_64-w64-mingw32-gcc -O -m64 $(LDFLAGS) fileop_windows64.o -o fileop
+	x86_64-w64-mingw32-gcc -O -m64 $(LDFLAGS) pit_server_win64.o \
+	  -o pit_server -lwsock32 -lws2_32
+
+#
+# SUA build requires SUA development environment. You
 # can get this from Microsoft
 # No largefiles, No async I/O
 #
@@ -695,12 +755,31 @@ pit_server_solaris10gcc.o:	pit_server.c
 	@echo ""
 	$(GCC) -c  $(CFLAGS) pit_server.c -o pit_server_solaris10gcc.o 
 
+pit_server_Cygwin.o:	pit_server.c
+	@echo ""
+	@echo "Building the pit_server for Cygwin32"
+	@echo ""
+	i686-pc-cygwin-gcc -c  $(CFLAGS) pit_server.c  -o pit_server_Cygwin.o
 
-pit_server_win.o:	pit_server.c
+pit_server_Cygwin64.o:	pit_server.c
 	@echo ""
-	@echo "Building the pit_server for Windows"
+	@echo "Building the pit_server for Cygwin64"
 	@echo ""
-	$(GCC) -c  $(CFLAGS) -DWindows pit_server.c  -o pit_server_win.o 
+	x86_64-pc-cygwin-gcc -c  $(CFLAGS) pit_server.c  -o pit_server_Cygwin64.o 
+
+pit_server_win.o:	pit_server.c winhelper.h
+	@echo ""
+	@echo "Building the pit_server for Windows32"
+	@echo ""
+	i686-w64-mingw32-gcc -c -m32 $(CFLAGS) -DWindows \
+		-DNO_PRINT_LLD pit_server.c  -o pit_server_win.o 
+
+pit_server_win64.o:	pit_server.c winhelper.h
+	@echo ""
+	@echo "Building the pit_server for Windows64"
+	@echo ""
+	x86_64-w64-mingw32-gcc -c -m64 $(CFLAGS) -DWindows \
+		-DNO_PRINT_LLD pit_server.c  -o pit_server_win64.o
 
 pit_server_sua.o:	pit_server.c
 	@echo ""
@@ -980,11 +1059,31 @@ fileop_linux-s390x.o:  fileop.c
 	@echo ""
 	$(GCC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-s390x.o
 
-fileop_windows.o: fileop.c
+fileop_Cygwin.o:	fileop.c
 	@echo ""
-	@echo "Building fileop for Windows"
+	@echo "Building fileop for Cygwin32"
 	@echo ""
-	$(GCC) -Wall -c -O3 $(CFLAGS) -DWindows fileop.c -o fileop_windows.o
+	i686-pc-cygwin-gcc -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_Cygwin.o
+
+fileop_Cygwin64.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for Cygwin64"
+	@echo ""
+	x86_64-pc-cygwin-gcc -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_Cygwin64.o
+
+fileop_windows.o:	fileop.c winhelper.h
+	@echo ""
+	@echo "Building fileop for Windows32"
+	@echo ""
+	i686-w64-mingw32-gcc -Wall -c -m32 -O3 $(CFLAGS) -DWindows \
+		-DNO_PRINT_LLD fileop.c -o fileop_windows.o
+
+fileop_windows64.o:	fileop.c winhelper.h
+	@echo ""
+	@echo "Building fileop for Windows64"
+	@echo ""
+	x86_64-w64-mingw32-gcc -Wall -c -m64 -O3 $(CFLAGS) -DWindows \
+		-DNO_PRINT_LLD fileop.c -o fileop_windows64.o
 
 fileop_sua.o: fileop.c
 	@echo ""
@@ -1247,16 +1346,51 @@ iozone_solaris8-64-VXFS.o: iozone.c libasync.c libbif.c
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
 		-Dsolaris -DHAVE_PREAD $(CFLAGS) libbif.c -o libbif.o
 
-iozone_windows.o:	iozone.c libasync.c libbif.c fileop.c
+iozone_Cygwin.o:	iozone.c libbif.c fileop.c
 	@echo ""
-	@echo "Building iozone for Windows (No async I/O)"
+	@echo "Building iozone for Cygwin32"
 	@echo ""
-	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DNO_MADVISE  \
-		-DWindows $(CFLAGS) -DDONT_HAVE_O_DIRECT iozone.c \
-		-o iozone_windows.o
-	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DNO_MADVISE \
-		-DWindows $(CFLAGS) libbif.c -o libbif.o
+	i686-pc-cygwin-gcc -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
+		$(CFLAGS) iozone.c \
+		-DNAME='"Cygwin32"' -o iozone_Cygwin.o
+	i686-pc-cygwin-gcc -c -O -Dunix -DHAVE_ANSIC_C \
+		$(CFLAGS) libbif.c -o libbif.o
+	i686-pc-cygwin-gcc -c -O -DUnix -DHAVE_ANSIC_C \
+		$(CFLAGS) libasync.c -o libasync.o
 
+iozone_Cygwin64.o:	iozone.c libasync.c libbif.c fileop.c
+	@echo ""
+	@echo "Building iozone for Cygwin64"
+	@echo ""
+	x86_64-pc-cygwin-gcc -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
+		$(CFLAGS) iozone.c \
+		-DNAME='"Cygwin64"' -o iozone_Cygwin64.o
+	x86_64-pc-cygwin-gcc -c -O -Dunix -DHAVE_ANSIC_C \
+		$(CFLAGS) libbif.c -o libbif.o
+	x86_64-pc-cygwin-gcc -c -O -Dunix -DHAVE_ANSIC_C \
+		$(CFLAGS) libasync.c -o libasync.o
+
+iozone_windows.o:	iozone.c libasync.c libbif.c fileop.c winhelper.h
+	@echo ""
+	@echo "Building iozone for Windows32 (No async I/O)"
+	@echo ""
+	i686-w64-mingw32-gcc -c -m32 -O -DHAVE_ANSIC_C -DNO_MADVISE -DNO_FORK  \
+		-DNO_SIGNAL -DNO_PRINT_LLD -DWindows $(CFLAGS) \
+		-DDONT_HAVE_O_DIRECT iozone.c \
+		-DNAME='"Windows32"' -o iozone_windows.o
+	i686-w64-mingw32-gcc -c -m32 -O -DHAVE_ANSIC_C -DNO_MADVISE \
+		-DNO_PRINT_LLD -DWindows $(CFLAGS) libbif.c -o libbif.o
+
+iozone_windows64.o:	iozone.c libasync.c libbif.c fileop.c winhelper.h
+	@echo ""
+	@echo "Building iozone for Windows64 (No async I/O)"
+	@echo ""
+	x86_64-w64-mingw32-gcc -c -m64 -O -DHAVE_ANSIC_C -DNO_MADVISE -DNO_FORK \
+		-DNO_SIGNAL -DNO_PRINT_LLD -DWindows $(CFLAGS) \
+		-DDONT_HAVE_O_DIRECT iozone.c \
+		-DNAME='"Windows64"' -o iozone_windows64.o
+	x86_64-w64-mingw32-gcc -c -m64 -O -DHAVE_ANSIC_C -DNO_MADVISE \
+		-DNO_PRINT_LLD -DWindows $(CFLAGS) libbif.c -o libbif.o
 
 #		-D_SUA_ $(CFLAGS) -DDONT_HAVE_O_DIRECT iozone.c \
 

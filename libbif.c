@@ -12,6 +12,7 @@
  */
 
 #ifdef Windows
+#include "winhelper.h"
 #include <Windows.h>
 #endif
 #include <sys/types.h>
@@ -23,11 +24,11 @@
 #include <sys/fcntl.h>
 #endif
 
-#if defined(OSV5) || defined(linux) || defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__)
+#if defined(OSV5) || defined(linux) || defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__CYGWIN__)
 #include <string.h>
 #endif
 
-#if defined(linux) || defined(__DragonFly__) || defined(IOZ_macosx) || defined(__NetBSD__)
+#if defined(linux) || defined(__DragonFly__) || defined(IOZ_macosx) || defined(__NetBSD__) || defined(__CYGWIN__)
 #include <unistd.h>
 #include <stdlib.h>
 #endif
@@ -91,7 +92,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.30 $";
+char libbif_version[] = "Libbif Version $Revision: 3.31 $";
 #endif
 
 #define BOF 0x9

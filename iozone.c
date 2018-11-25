@@ -58,19 +58,25 @@
 /* 									*/
 /************************************************************************/
 
-
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.471 $"
+#define THISVERSION "        Version $Revision: 3.472 $"
 
-#if defined(linux)
+#if defined(linux) || defined(__CYGWIN__)
   #define _GNU_SOURCE
 #endif
 /* Include for Cygnus development environment for Windows */
-#if defined (Windows)
+#if defined(__CYGWIN__)
+#define WIN32_LEAN_AND_MEAN
+#include <w32api/windows.h>
+#endif
+#if defined(Windows)
+#define WINHELPER_FUNCS
+#include "winhelper.h"
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <errno.h>
 #else
-#if defined(linux) || defined(solaris) || defined(IOZ_macosx) || defined(__AIX__) || defined(__FreeBSD__) || defined(_HPUX_SOURCE) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__NetBSD__)
+#if defined(linux) || defined(solaris) || defined(IOZ_macosx) || defined(__AIX__) || defined(__FreeBSD__) || defined(_HPUX_SOURCE) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__CYGWIN__)
 #include <errno.h>
 #else
 extern  int errno;   /* imported for errors */
@@ -78,13 +84,15 @@ extern  int h_errno; /* imported for errors */
 #endif
 #endif
 
-#ifdef NO_FORK
-#define fork no_fork
-#endif
-
 #include <sys/types.h>
 #include <sys/stat.h>
-#if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__) || defined(_LP64) || defined(__s390x__) || defined(__AMD64__)
+
+#ifdef NO_FORK
+#define fork no_fork
+pid_t no_fork(void);
+#endif
+
+#if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__) || defined(_LP64) || defined(__s390x__) || defined(__AMD64__) || defined(__x86_64__)
 #define MODE "\tCompiled for 64 bit mode."
 #define _64BIT_ARCH_
 #else
@@ -95,7 +103,7 @@ extern  int h_errno; /* imported for errors */
 #include <pthread.h>
 #endif
 
-#if defined(HAVE_ANSIC_C) && defined(linux)
+#if defined(HAVE_ANSIC_C) && (defined(linux) || defined(__CYGWIN__))
 #include <stdlib.h>
 #include <sys/wait.h>
 #endif
@@ -107,7 +115,7 @@ int atoi();
 int close();
 int unlink();
 int main();
-#if !defined(linux)
+#if !defined(linux) && !defined(__CYGWIN__)
 int wait();
 #endif
 int fsync();
@@ -276,7 +284,9 @@ THISVERSION,
     INCLUDE FILES (system-dependent)
 
 ******************************************************************/
+#ifndef Windows
 #include <sys/mman.h>
+#endif
 #include <stdio.h>
 #include <signal.h>
 
@@ -331,11 +341,11 @@ THISVERSION,
 #include <stdlib.h>
 #endif
 
-#if defined(OSFV5) || defined(linux)
+#if defined(OSFV5) || defined(linux) || defined(__CYGWIN__)
 #include <string.h>
 #endif
 
-#if defined(linux)
+#if defined(linux) || defined(__CYGWIN__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -508,9 +518,11 @@ struct runtime {
 #include <sys/cnx_ail.h>
 #endif
 
+#ifndef Windows
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#endif
 
 
 /* 
@@ -1242,9 +1254,11 @@ int pit_gettimeofday();
 ssize_t pwrite64(); 
 ssize_t pread64(); 
 #endif
-#if !defined(linux)
+#if !defined(linux) && !defined(__CYGWIN__)
 char *getenv();
+#ifndef Windows
 char *inet_ntoa();
+#endif
 int system();
 #endif
 #ifdef ASYNC_IO
@@ -1256,6 +1270,8 @@ size_t async_write_no_copy();
 void end_async();
 void async_init();
 #else
+int async_read();
+int async_read_no_copy();
 size_t async_write();
 size_t async_write_no_copy();
 void async_release();
@@ -1327,7 +1343,7 @@ void dump_hist(char *,int );
 void do_speed_check(int);
 #else
 void do_speed_check();
-#if !defined(linux)
+#if !defined(linux) && !defined(__CYGWIN__)
 char *getenv();
 char *inet_ntoa();
 int system();
@@ -1409,6 +1425,14 @@ void dump_hist();
 #define I_PWRITE(a,b,c,d)	pwrite(a,b,(size_t)(c),(off_t)(d))
 #endif
 #define I_MMAP(a,b,c,d,e,f) 	mmap((void *)(a),(size_t)(b),(int)(c),(int)(d),(int)(e),(off_t)(f))
+#endif
+
+#if defined(Windows)
+/* overrides to pull in wrappers from winhelper.h */
+#undef I_OPEN
+#define I_OPEN(x,y,z)	wh_open(x,(int)y,(int)z)
+#undef I_CREAT
+#define I_CREAT(x,y)	wh_creat(x,(int)y)
 #endif
 
 
@@ -1512,7 +1536,9 @@ int t_count = 0;
 int r_count,s_count;
 char *barray[MAXSTREAMS];
 char *haveshm;
+#if !defined(__CYGWIN__)
 extern int optind;
+#endif
 long long onetime, auto_mode, sfd, multi_buffer;
 int exit_code = 0;  
 int fd;
@@ -1538,7 +1564,7 @@ int share_file;
 int ecount;
 char gflag,nflag;
 char yflag,qflag;
-#ifdef Windows
+#if defined(Windows) && 0 /*don't seem to need this anymore*/
 char *build_name = "Windows";
 #else
 char *build_name = NAME;
@@ -1569,7 +1595,9 @@ off64_t next64;
 char wol_opened, rol_opened;
 FILE *wqfd,*rwqfd,*rqfd,*rrqfd;
 
+#if !defined(__CYGWIN__)
 extern char *optarg;
+#endif
 #ifndef __AIX__
 long long ret;
 #else
@@ -1844,7 +1872,7 @@ char **argv;
 	mygen=rand(); /* Pick a random generation number */
 
 	/* Try to find the actual VM page size, if possible */
-#if defined (solaris) || defined (_HPUX_SOURCE) || defined (linux) || defined(IRIX) || defined (IRIX64) || defined(__NetBSD__)
+#if defined (solaris) || defined (_HPUX_SOURCE) || defined (linux) || defined(IRIX) || defined (IRIX64) || defined(__NetBSD__) || defined(__CYGWIN__)
 #ifndef __convex_spp
 	page_size=getpagesize();
 #endif
@@ -1877,7 +1905,7 @@ char **argv;
     	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root,\n");
     	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue, Qin Li, Darren Sawyer,\n");
     	sprintf(splash[splash_line++],"\t             Vangel Bojaxhi, Ben England, Vikentsi Lapa,\n");
-    	sprintf(splash[splash_line++],"\t             Alexey Skidanov.\n\n");
+    	sprintf(splash[splash_line++],"\t             Alexey Skidanov, Mark Geisert.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -2016,7 +2044,7 @@ char **argv;
 			break;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(__FreeBSD__) || defined(solaris) || defined(IOZ_macosx)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(__FreeBSD__) || defined(solaris) || defined(IOZ_macosx) || defined(__CYGWIN__)
 			direct_flag++;
 			sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
 			break;
@@ -2198,7 +2226,7 @@ char **argv;
 
 		case 'P':	/* Set beginning processor for binding. */
 #ifndef NO_THREADS
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 #if defined(_HPUX_SOURCE)
 			num_processors= pthread_num_processors_np();
 #else
@@ -2746,7 +2774,7 @@ char **argv;
 				case 't':  /* Speed code activated */
 					speed_code=1;
 					break;
-#if defined(_HPUX_SOURCE) || defined(linux) || defined(solaris)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(solaris) || defined(__CYGWIN__)
 				case 'r':  /* Read sync too */
 					read_sync=1;
     					sprintf(splash[splash_line++],"\tRead & Write sync mode active.\n");
@@ -3272,7 +3300,11 @@ char **argv;
 		max_rec_size=min_rec_size;
 
 	init_record_sizes(min_rec_size,max_rec_size);
+#if defined(Windows) || defined(__CYGWIN__)
+    	if(!silent) printf("\tTime Resolution = %1.9f seconds.\n",time_res);
+#else
     	if(!silent) printf("\tTime Resolution = %1.6f seconds.\n",time_res);
+#endif
 #ifdef NO_PRINT_LLD
     	if(!silent) printf("\tProcessor cache size set to %ld kBytes.\n",cache_size/1024);
     	if(!silent) printf("\tProcessor cache line size set to %ld bytes.\n",cache_line_size);
@@ -4017,7 +4049,7 @@ throughput_test()
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 
@@ -4268,7 +4300,7 @@ waitout:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -4513,7 +4545,7 @@ next0:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -4748,7 +4780,7 @@ jumpend4:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -4988,7 +5020,7 @@ next1:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -5222,7 +5254,7 @@ next2:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -5457,7 +5489,7 @@ next3:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -5687,7 +5719,7 @@ next4:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -5917,7 +5949,7 @@ next5:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -6610,7 +6642,7 @@ next8:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -6840,7 +6872,7 @@ next9:
         		   perror("Memory allocation failed:");
         		   exit(26);
         		}
-     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+     			barray[xx] =(char *)(((intptr_t)barray[xx] + cache_size ) & 
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
@@ -7165,7 +7197,7 @@ static double
 time_so_far()
 #endif
 {
-#ifdef Windows
+#if defined(Windows) || defined(__CYGWIN__)
    LARGE_INTEGER freq,counter;
    double wintime,bigcounter;
    struct timeval tp;
@@ -7669,13 +7701,13 @@ long long *data2;
 	if(odsync)
 		file_flags |= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux) || defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__FreeBSD__) || defined(__DragonFly__) || defined(__CYGWIN__)
 	if(read_sync)
 		file_flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		file_flags |=O_DIRECT;
 #endif
@@ -7939,7 +7971,7 @@ long long *data2;
 			if(async_flag && no_copy_flag)
 			{
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+				nbuff=(char *)(((intptr_t)nbuff+(long)page_size) & (long)~(page_size-1));
 				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 				if(purge)
@@ -8679,12 +8711,12 @@ long long *data1,*data2;
 	numrecs64 = (kilo64*1024)/reclen;
 
 	open_flags = O_RDONLY;
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -9239,7 +9271,7 @@ long long *data1, *data2;
 	}
 	flags = O_RDWR;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -9255,7 +9287,7 @@ long long *data1, *data2;
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
@@ -9486,7 +9518,7 @@ long long *data1, *data2;
 				if(async_flag && no_copy_flag)
 				{
 					free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-					nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+					nbuff=(char *)(((intptr_t)nbuff+(long)page_size) & (long)~(page_size-1));
 					if(verify || dedup_flag || dedup_iflag)
 						fill_buffer(nbuff,reclen,(long long)pattern,sverify,offset64/reclen);
 				}
@@ -9717,7 +9749,7 @@ long long *data1,*data2;
 	maddr=wmaddr=0;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -9726,7 +9758,7 @@ long long *data1,*data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
@@ -10017,7 +10049,7 @@ long long *data1,*data2;
 /*	flags = O_RDWR|O_CREAT|O_TRUNC;*/
 	flags = O_RDWR|O_CREAT;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -10032,7 +10064,7 @@ long long *data1,*data2;
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
@@ -10137,7 +10169,7 @@ long long *data1,*data2;
 		if(async_flag && no_copy_flag)
 		{
 			free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+			nbuff=(char *)(((intptr_t)nbuff+(long)page_size) & (long)~(page_size-1));
 			if(verify || dedup_flag || dedup_iflag)
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		}
@@ -10341,7 +10373,7 @@ long long *data1, *data2;
 	nbuff=maddr=wmaddr=0;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -10350,7 +10382,7 @@ long long *data1, *data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
@@ -10679,13 +10711,13 @@ long long *data1,*data2;
 		flags_here |= O_DSYNC;
 #endif
 
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags_here |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags_here |=O_DIRECT;
 #endif
@@ -10940,7 +10972,7 @@ long long *data1, *data2;
 	nbuff=mainbuffer;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -10949,7 +10981,7 @@ long long *data1, *data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux) || defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__FreeBSD__) || defined(__DragonFly__) || defined(__CYGWIN__)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
@@ -11199,13 +11231,13 @@ long long *data1,*data2;
 	if(odsync)
 		flags_here |= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags_here |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags_here |=O_DIRECT;
 #endif
@@ -11531,7 +11563,7 @@ long long *data1,*data2;
 
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -11540,7 +11572,7 @@ long long *data1,*data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
@@ -12870,13 +12902,13 @@ thread_write_test( x)
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -13137,7 +13169,7 @@ again:
 			     if(no_copy_flag)
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+				nbuff=(char *)(((intptr_t)nbuff+(long)page_size) & (long)~(page_size-1));
 				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
@@ -13498,7 +13530,7 @@ thread_pwrite_test( x)
 	}
 #endif
 #ifndef NO_THREADS
-#if defined( _HPUX_SOURCE ) || defined ( linux )
+#if defined( _HPUX_SOURCE ) || defined ( linux ) || defined(__CYGWIN__)
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
@@ -13581,13 +13613,13 @@ thread_pwrite_test( x)
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -14203,13 +14235,13 @@ thread_rwrite_test(x)
 	if(odsync)
 		flags|= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -14429,7 +14461,7 @@ fprintf(newstdout,"Chid: %lld Rewriting offset %lld for length of %lld\n",(long 
 			     if(no_copy_flag)
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+				nbuff=(char *)(((intptr_t)nbuff+(long)page_size) & (long)~(page_size-1));
 				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
@@ -14780,13 +14812,13 @@ thread_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -15358,13 +15390,13 @@ thread_pread_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -15912,13 +15944,13 @@ thread_rread_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -16480,13 +16512,13 @@ thread_reverse_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -17016,12 +17048,12 @@ thread_stride_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -17674,13 +17706,13 @@ void *x;
 	}
 	else
 		flags=O_RDONLY;
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -18331,13 +18363,13 @@ thread_ranwrite_test( x)
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__CYGWIN__)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -18574,7 +18606,7 @@ again:
 			     if(no_copy_flag)
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+				nbuff=(char *)(((intptr_t)nbuff+(long)page_size) & (long)~(page_size-1));
 				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (current_offset), depth,free_addr);
@@ -19310,7 +19342,7 @@ int flag, prot;
 		 /* 
 		  * Align to a reclen boundary.
 		  */
-		 tmp = (char *)((((long)tmp + (long)reclen))& ~(((long)reclen-1)));
+		 tmp = (char *)((((intptr_t)tmp + (long)reclen))& ~(((long)reclen-1)));
 		/* 
 		 * Special case.. Open O_DIRECT, and going to be mmap() 
 		 * Under Linux, one can not create a sparse file using 
@@ -19319,7 +19351,7 @@ int flag, prot;
 	 	file_flags=fcntl(fd,F_GETFL);
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__) || defined(__CYGWIN__)
 		dflag = O_DIRECT;
 #endif
 #if defined(TRU64)
@@ -19389,7 +19421,7 @@ int flag, prot;
 		exit(165);
 	}
 #else
-#ifdef linux
+#if defined(linux) || defined(__CYGWIN__)
 	if(pa == (char *)-1)
 	{
 		printf("Mapping failed, errno %d\n",errno);
@@ -19456,9 +19488,9 @@ long long size;
 {
 	if(munmap(buffer,(size_t)size)<0)
 #ifdef NO_PRINT_LLD
-		printf("munmap buffer %lx, size %ld failed.\n",(long)buffer,(long)size);
+		printf("munmap buffer %lx, size %ld failed.\n",(intptr_t)buffer,(long)size);
 #else
-		printf("munmap buffer %lx, size %lld failed.\n",(long)buffer,(long long)size);
+		printf("munmap buffer %lx, size %lld failed.\n",(intptr_t)buffer,(long long)size);
 #endif
 	
 }
@@ -19674,7 +19706,7 @@ time_so_far1()
 	get access to the high performance measurement interfaces. 
 	With this one can get back into the 8 to 9 microsecond resolution
       */
-#ifdef Windows
+#if defined(Windows) || defined(__CYGWIN__)
 	LARGE_INTEGER freq,counter;
 	double wintime;
 	double bigcounter;
@@ -19968,7 +20000,7 @@ int fd;
 	off64_t current;
 
 	free_addr=nbuff=(char *)malloc((size_t)page_size+page_size);
-	nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+	nbuff=(char *)(((intptr_t)nbuff+(long)page_size) & (long)~(page_size-1));
 
 	/* Save current position */
 	current = I_LSEEK(fd,0,SEEK_CUR);
@@ -20018,7 +20050,7 @@ int hand;
 	long retval;
 
 	free_addr=nbuff=(char *)malloc((size_t)page_size+page_size);
-	nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+	nbuff=(char *)(((intptr_t)nbuff+(long)page_size) & (long)~(page_size-1));
 
 	/* Save current position */
 	current=SetFilePointer(hand,(LONG)0,0,FILE_CURRENT);
@@ -21139,7 +21171,7 @@ int send_size;
 	sprintf(outbuf.c_restf,"%d",send_buffer->c_restf);
 	sprintf(outbuf.c_mygen,"%d",send_buffer->c_mygen);
 #ifdef NO_PRINT_LLD
-	sprintf(outbuf.c_stride,"%ld"(long)(,send_buffer->c_stride));
+	sprintf(outbuf.c_stride,"%ld",(long)(send_buffer->c_stride));
 	sprintf(outbuf.c_rest_val,"%ld",(long)(send_buffer->c_rest_val));
 	sprintf(outbuf.c_delay,"%ld",(long)(send_buffer->c_delay));
 	sprintf(outbuf.c_purge,"%ld",(long)(send_buffer->c_purge));
@@ -25654,7 +25686,7 @@ void * thread_fread_test( x)
 #ifdef _64BIT_ARCH_
 #ifdef NO_PRINT_LLD
 			printf("\nError freading block %ld %x\n", (long)i,
-				(unsigned long)buffer);
+				(uintptr_t)buffer);
 #else
 			printf("\nError freading block %lld %llx\n", (long long)i,
 				(unsigned long long)buffer);
